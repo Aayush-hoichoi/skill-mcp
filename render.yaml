@@ -1,0 +1,29 @@
+services:
+  - type: web
+    name: skill-mcp
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m skill_mcp
+    healthCheckPath: /health
+    envVars:
+      - key: SKILL_SOURCES
+        sync: false
+      - key: GITHUB_APP_ID
+        sync: false
+      - key: GITHUB_APP_PRIVATE_KEY
+        sync: false
+      - key: GITHUB_APP_INSTALLATION_ID
+        sync: false
+      - key: CACHE_TTL_SECONDS
+        value: "3600"
+      - key: CACHE_TTL_PUBLIC_SECONDS
+        value: "14400"
+      - key: PORT
+        value: "8000"
+      - key: API_KEY
+        generateValue: true
+    disk:
+      name: skill-cache
+      mountPath: /tmp/skill-mcp-cache
+      sizeGB: 1
