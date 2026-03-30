@@ -75,8 +75,8 @@ def create_app(
         return results
 
     @mcp.tool
-    async def get_skill(name: str, include_references: bool = True) -> dict:
-        """Fetch a skill's full content by name. Returns SKILL.md body and references."""
+    async def get_skill(name: str, include_references: bool = False) -> dict:
+        """Fetch a skill's SKILL.md content by name. References are listed by name only — use get_reference to fetch individual reference files."""
         await _ensure_cached()
         for s in _sources:
             skill = cache.get_skill(s, name)
@@ -89,11 +89,32 @@ def create_app(
                     "repo": skill.repo,
                     "path": skill.path,
                     "auth_mode": skill.auth_mode,
+                    "reference_files": list(skill.references.keys()),
                 }
                 if include_references:
                     result["references"] = skill.references
                 return result
         return {"error": f"Skill '{name}' not found"}
+
+    @mcp.tool
+    async def get_reference(skill_name: str, reference_path: str) -> dict:
+        """Fetch a single reference file from a skill. Use get_skill first to see available reference_files."""
+        await _ensure_cached()
+        for s in _sources:
+            skill = cache.get_skill(s, skill_name)
+            if skill is not None:
+                content = skill.references.get(reference_path)
+                if content is not None:
+                    return {
+                        "skill": skill_name,
+                        "reference": reference_path,
+                        "content": content,
+                    }
+                return {
+                    "error": f"Reference '{reference_path}' not found in skill '{skill_name}'",
+                    "available": list(skill.references.keys()),
+                }
+        return {"error": f"Skill '{skill_name}' not found"}
 
     @mcp.tool
     async def search_skills(query: str, source: str | None = None) -> list[dict]:

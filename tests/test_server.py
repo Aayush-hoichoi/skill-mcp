@@ -65,8 +65,8 @@ def test_create_app_returns_fastmcp(mock_cache, mock_discovery, sources):
     )
     assert app is not None
     tool_names = _get_tool_names(app)
-    expected = {"list_skills", "get_skill", "search_skills", "install_skill",
-                "refresh_skills", "add_source", "remove_source"}
+    expected = {"list_skills", "get_skill", "get_reference", "search_skills",
+                "install_skill", "refresh_skills", "add_source", "remove_source"}
     assert expected == tool_names
 
 
@@ -143,7 +143,7 @@ async def test_get_skill_not_found(mock_cache, mock_discovery, sources):
 
 @pytest.mark.asyncio
 async def test_get_skill_found(mock_cache, mock_discovery, sources, sample_skill):
-    """get_skill returns full skill data including references."""
+    """get_skill returns skill data with reference file list (not contents)."""
     mock_cache.is_fresh.return_value = True
     mock_cache.get_skill.return_value = sample_skill
 
@@ -157,13 +157,13 @@ async def test_get_skill_found(mock_cache, mock_discovery, sources, sample_skill
     result = tool_result.structured_content
     assert result["name"] == "my-skill"
     assert result["content"] == "# My Skill\nBody"
-    assert "references" in result
-    assert result["references"] == {"ref.md": "ref content"}
+    assert "references" not in result
+    assert result["reference_files"] == ["ref.md"]
 
 
 @pytest.mark.asyncio
-async def test_get_skill_no_references(mock_cache, mock_discovery, sources, sample_skill):
-    """get_skill omits references when include_references=False."""
+async def test_get_skill_with_references(mock_cache, mock_discovery, sources, sample_skill):
+    """get_skill includes full reference contents when include_references=True."""
     mock_cache.is_fresh.return_value = True
     mock_cache.get_skill.return_value = sample_skill
 
@@ -173,10 +173,46 @@ async def test_get_skill_no_references(mock_cache, mock_discovery, sources, samp
         discovery=mock_discovery,
         github_clients={},
     )
-    tool_result = await app.call_tool("get_skill", {"name": "my-skill", "include_references": False})
+    tool_result = await app.call_tool("get_skill", {"name": "my-skill", "include_references": True})
     result = tool_result.structured_content
     assert result["name"] == "my-skill"
-    assert "references" not in result
+    assert result["references"] == {"ref.md": "ref content"}
+
+
+@pytest.mark.asyncio
+async def test_get_reference_found(mock_cache, mock_discovery, sources, sample_skill):
+    """get_reference returns content of a single reference file."""
+    mock_cache.is_fresh.return_value = True
+    mock_cache.get_skill.return_value = sample_skill
+
+    app = create_app(
+        sources=sources,
+        cache=mock_cache,
+        discovery=mock_discovery,
+        github_clients={},
+    )
+    tool_result = await app.call_tool("get_reference", {"skill_name": "my-skill", "reference_path": "ref.md"})
+    result = tool_result.structured_content
+    assert result["content"] == "ref content"
+    assert result["skill"] == "my-skill"
+
+
+@pytest.mark.asyncio
+async def test_get_reference_not_found(mock_cache, mock_discovery, sources, sample_skill):
+    """get_reference returns error with available files when reference doesn't exist."""
+    mock_cache.is_fresh.return_value = True
+    mock_cache.get_skill.return_value = sample_skill
+
+    app = create_app(
+        sources=sources,
+        cache=mock_cache,
+        discovery=mock_discovery,
+        github_clients={},
+    )
+    tool_result = await app.call_tool("get_reference", {"skill_name": "my-skill", "reference_path": "nope.md"})
+    result = tool_result.structured_content
+    assert "error" in result
+    assert result["available"] == ["ref.md"]
 
 
 @pytest.mark.asyncio

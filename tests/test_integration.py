@@ -43,7 +43,7 @@ def app(tmp_path):
 
 
 def test_tools_registered(app):
-    """Verify all 7 tools are registered on the FastMCP app."""
+    """Verify all 8 tools are registered on the FastMCP app."""
     components = app._local_provider._components
     tool_names = {
         key.split(":")[1].split("@")[0]
@@ -57,3 +57,4 @@ def test_tools_registered(app):
     assert "add_source" in tool_names
     assert "remove_source" in tool_names
     assert "install_skill" in tool_names
+    assert "get_reference" in tool_names
